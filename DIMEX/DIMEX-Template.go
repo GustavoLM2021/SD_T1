@@ -22,6 +22,7 @@ package DIMEX
 import (
 	PP2PLink "SD/PP2PLink"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -112,12 +113,13 @@ func (module *DIMEX_Module) Start() {
 
 			case msgOutro := <-module.Pp2plink.Ind: // vindo de outro processo
 				//fmt.Printf("dimex recebe da rede: ", msgOutro)
-				if strings.Contains(msgOutro.Message, "respOK") {
-					module.outDbg("         <<<---- responde! " + msgOutro.Message)
+				module.outDbg("recebeu msg de outro processo: " + msgOutro.Message)
+				if strings.Contains(msgOutro.Message, "respOk") {
+					module.outDbg("         <<<---- recebi um OK! " + msgOutro.Message)
 					module.handleUponDeliverRespOk(msgOutro) // ENTRADA DO ALGORITMO
 
 				} else if strings.Contains(msgOutro.Message, "reqEntry") {
-					module.outDbg("          <<<---- pede??  " + msgOutro.Message)
+					module.outDbg("          <<<---- recebi uma REQ!  " + msgOutro.Message)
 					module.handleUponDeliverReqEntry(msgOutro) // ENTRADA DO ALGORITMO
 
 				}
@@ -146,11 +148,11 @@ func (module *DIMEX_Module) handleUponReqEntry() {
 	module.reqTs = module.lcl
 	module.nbrResps = 0
 
-	for i, value := range module.addresses{
+	for i, value := range module.addresses {
 		if i == module.id {
 			continue // nao pode enviar a si mesmo
 		}
-		module.sendToLink(value, "reqEntry," + fmt.Sprint(module.id) + "," + fmt.Sprint(module.reqTs), "")
+		module.sendToLink(value, "reqEntry,"+fmt.Sprint(module.id)+","+fmt.Sprint(module.reqTs), "")
 	}
 	module.st = wantMX
 }
@@ -168,7 +170,7 @@ func (module *DIMEX_Module) handleUponReqExit() {
 			continue // nao pode responder a si mesmo
 		}
 		if value {
-			module.SendToLink(module.addresses[i], "respOk," + fmt.Sprint(module.id), "")
+			module.sendToLink(module.addresses[i], "respOk,"+fmt.Sprint(module.id), "")
 			module.waiting[i] = false
 		}
 	}
@@ -191,7 +193,8 @@ func (module *DIMEX_Module) handleUponDeliverRespOk(msgOutro PP2PLink.PP2PLink_I
 
 	*/
 	module.nbrResps++
-	if module.nbrResps == len(module.addresses) - 1 {
+	module.outDbg("Recebi OK do ID " + strings.Split(msgOutro.Message, ",")[1])
+	if module.nbrResps == len(module.addresses)-1 {
 		module.outDbg("resps == N, estou na SC")
 		module.st = inMX
 		module.Ind <- dmxResp{} // sinaliza que pode acessar o recurso
@@ -213,18 +216,23 @@ func (module *DIMEX_Module) handleUponDeliverReqEntry(msgOutro PP2PLink.PP2PLink
 		        				então  postergados := postergados + [p, r ]
 		     					lts.ts := max(lts.ts, rts.ts)
 	*/
-	FromID := strings.Split(msgOutro.Message, ",")[1]
-	rts := strings.Split(msgOutro.Message, ",")[2]
-	rts, _ = strconv.Atoi(rts)
-	if module.st == noMX || (module.st == wantMX && module.reqTs > rts) {
-		module.outDbg("responde a " + msgOutro.From + " com respOk")
-		module.SendToLink(msgOutro.From, "respOk," + fmt.Sprint(module.id), "")
+
+	// IMPORTANTE: Por algum motivo o msgOutro.From ta chegando com IP errado
+	FromID, _ := strconv.Atoi(strings.Split(msgOutro.Message, ",")[1])
+	rts, _ := strconv.Atoi(strings.Split(msgOutro.Message, ",")[2])
+
+	if module.st == noMX || (module.st == wantMX && (module.reqTs > rts || (module.reqTs == rts && module.id > FromID))) {
+		module.outDbg("responde a IP " + module.addresses[FromID] + " com respOk")
+		module.sendToLink(module.addresses[FromID], "respOk,"+fmt.Sprint(module.id), "")
 	} else {
-		module.outDbg("postergando para " + msgOutro.From)
+		module.outDbg("nao vai conceder para ID  " + fmt.Sprint(FromID))
 		module.waiting[FromID] = true // marca que esta esperando
 	}
 	// atualiza o timestamp local
-	module.lcl = max(module.lcl, rts)
+	//module.lcl = max(module.lcl, rts)
+	if rts > module.lcl {
+		module.lcl = rts
+	}
 }
 
 // ------------------------------------------------------------------------------------
