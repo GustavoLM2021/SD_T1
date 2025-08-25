@@ -36,13 +36,26 @@ import (
 	"time"
 )
 
+func startSnapshot(dmx *DIMEX.DIMEX_Module, id int) {
+	for {
+		time.Sleep(20 * time.Second)
+		fmt.Println("[ APP id: ", id, " PEDE SNAPSHOT ]")
+		dmx.Req <- DIMEX.SNAPSHOT
+		//fmt.Println("[ APP id: ", id, " ESPERA SNAPSHOT ]")
+		// ESPERA LIBERACAO DO MODULO DIMEX
+		<-dmx.Ind //
+		fmt.Println("[ APP id: ", id, " RECEBE SNAPSHOT ]")
+	}
+}
+
 func main() {
 
 	if len(os.Args) < 2 {
 		fmt.Println("Please specify at least one address:port!")
-		fmt.Println("go run usaDIMEX-f.go 0 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 ")
-		fmt.Println("go run usaDIMEX-f.go 1 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 ")
-		fmt.Println("go run usaDIMEX-f.go 2 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 ")
+		// --s -> flag opcional para snapshot
+		fmt.Println("go run usaDIMEX-f.go 0 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 [--s] ")
+		fmt.Println("go run usaDIMEX-f.go 1 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 [--s]")
+		fmt.Println("go run usaDIMEX-f.go 2 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 [--s]")
 		return
 	}
 
@@ -63,6 +76,11 @@ func main() {
 
 	// espera para facilitar inicializacao de todos processos (a mao)
 	time.Sleep(7 * time.Second)
+
+	// opcao para iniciar snapshot periodico
+	if len(os.Args) > 3 && os.Args[len(os.Args)-1] == "--s" {
+		go startSnapshot(dmx, id)
+	}
 
 	for {
 		// SOLICITA ACESSO AO DIMEX

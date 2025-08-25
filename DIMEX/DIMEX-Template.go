@@ -41,6 +41,7 @@ type dmxReq int // enumeracao dos estados possiveis de um processo
 const (
 	ENTER dmxReq = iota
 	EXIT
+	SNAPSHOT
 )
 
 type dmxResp struct { // mensagem do módulo DIMEX infrmando que pode acessar - pode ser somente um sinal (vazio)
@@ -60,6 +61,12 @@ type DIMEX_Module struct {
 	dbg       bool
 
 	Pp2plink *PP2PLink.PP2PLink // acesso aa comunicacao enviar por PP2PLinq.Req  e receber por PP2PLinq.Ind
+
+	// variaveis de controle para algoritmo de snapshot
+	makingSnapshot    bool
+	snapshotAnswers   int
+	processState      string
+	messagesInTransit []string
 }
 
 // ------------------------------------------------------------------------------------
@@ -109,6 +116,8 @@ func (module *DIMEX_Module) Start() {
 				} else if dmxR == EXIT {
 					module.outDbg("app libera mx")
 					module.handleUponReqExit() // ENTRADA DO ALGORITMO
+				} else if dmxR == SNAPSHOT {
+					module.outDbg("app pede snapshot")
 				}
 
 			case msgOutro := <-module.Pp2plink.Ind: // vindo de outro processo
@@ -235,6 +244,10 @@ func (module *DIMEX_Module) handleUponDeliverReqEntry(msgOutro PP2PLink.PP2PLink
 	}
 }
 
+func (module *DIMEX_Module) handleSnapshot() {
+	// ainda nao implementado
+}
+
 // ------------------------------------------------------------------------------------
 // ------- funcoes de ajuda
 // ------------------------------------------------------------------------------------
@@ -260,4 +273,9 @@ func (module *DIMEX_Module) outDbg(s string) {
 	if module.dbg {
 		fmt.Println(". . . . . . . . . . . . [ DIMEX : " + s + " ]")
 	}
+}
+
+func (module *DIMEX_Module) processStateToString() string {
+	// nao implementado
+	return ""
 }
