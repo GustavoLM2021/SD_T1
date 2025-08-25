@@ -89,7 +89,13 @@ func NewDIMEX(_addresses []string, _id int, _dbg bool) *DIMEX_Module {
 		reqTs:     0,
 		dbg:       _dbg,
 
-		Pp2plink: p2p}
+		Pp2plink: p2p,
+
+		// variaveis de snapshot
+		makingSnapshot:    false,
+		snapshotAnswers:   0,
+		messagesInTransit: []string{},
+	}
 
 	for i := 0; i < len(dmx.waiting); i++ {
 		dmx.waiting[i] = false
@@ -104,7 +110,6 @@ func NewDIMEX(_addresses []string, _id int, _dbg bool) *DIMEX_Module {
 // ------------------------------------------------------------------------------------
 
 func (module *DIMEX_Module) Start() {
-
 	go func() {
 		for {
 			select {
@@ -118,6 +123,7 @@ func (module *DIMEX_Module) Start() {
 					module.handleUponReqExit() // ENTRADA DO ALGORITMO
 				} else if dmxR == SNAPSHOT {
 					module.outDbg("app pede snapshot")
+					module.handleSnapshot(true)
 				}
 
 			case msgOutro := <-module.Pp2plink.Ind: // vindo de outro processo
@@ -131,6 +137,9 @@ func (module *DIMEX_Module) Start() {
 					module.outDbg("          <<<---- recebi uma REQ!  " + msgOutro.Message)
 					module.handleUponDeliverReqEntry(msgOutro) // ENTRADA DO ALGORITMO
 
+				} else if strings.Contains(msgOutro.Message, "msgSnapshot") {
+					module.outDbg("          <<<---- recebi pedido snapshot!  " + msgOutro.Message)
+					module.handleSnapshot(false)
 				}
 			}
 		}
@@ -244,8 +253,36 @@ func (module *DIMEX_Module) handleUponDeliverReqEntry(msgOutro PP2PLink.PP2PLink
 	}
 }
 
-func (module *DIMEX_Module) handleSnapshot() {
-	// ainda nao implementado
+func (module *DIMEX_Module) handleSnapshot(started bool) {
+	// talvez implementado
+
+	if module.snapshotAnswers == 0 {
+		module.makingSnapshot = true
+		if started {
+			module.snapshotAnswers = 0
+		} else {
+			module.snapshotAnswers = 1
+		}
+		module.processState = module.processStateToString()
+		module.messagesInTransit = []string{}
+		module.outDbg("Iniciando snapshot")
+		for i, value := range module.addresses {
+			if i == module.id {
+				continue // nao pode enviar a si mesmo
+			}
+			module.sendToLink(value, "msgSnapshot,"+fmt.Sprint(module.id), "")
+		}
+	} else {
+		module.snapshotAnswers++
+		if module.snapshotAnswers == len(module.addresses)-1 {
+			//finaliza snapshot
+			//salvar resultados
+			module.snapshotAnswers = 0
+			module.makingSnapshot = false
+			module.messagesInTransit = []string{}
+			module.outDbg("Finalizando snapshot")
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------

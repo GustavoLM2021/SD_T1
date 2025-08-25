@@ -38,7 +38,7 @@ import (
 
 func startSnapshot(dmx *DIMEX.DIMEX_Module, id int) {
 	for {
-		time.Sleep(20 * time.Second)
+		time.Sleep(10 * time.Second)
 		fmt.Println("[ APP id: ", id, " PEDE SNAPSHOT ]")
 		dmx.Req <- DIMEX.SNAPSHOT
 		//fmt.Println("[ APP id: ", id, " ESPERA SNAPSHOT ]")
