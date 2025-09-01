@@ -38,7 +38,7 @@ import (
 
 func startSnapshot(dmx *DIMEX.DIMEX_Module, id int) {
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(30 * time.Second)
 		fmt.Println("[ APP id: ", id, " PEDE SNAPSHOT ]")
 		dmx.Req <- DIMEX.SNAPSHOT
 		//fmt.Println("[ APP id: ", id, " ESPERA SNAPSHOT ]")
@@ -53,14 +53,18 @@ func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Please specify at least one address:port!")
 		// --s -> flag opcional para snapshot
-		fmt.Println("go run usaDIMEX-f.go 0 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 [--s] ")
-		fmt.Println("go run usaDIMEX-f.go 1 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 [--s]")
-		fmt.Println("go run usaDIMEX-f.go 2 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 [--s]")
+		fmt.Println("go run useDIMEX-f.go 0 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 [--s]")
+		fmt.Println("go run useDIMEX-f.go 1 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 [--s]")
+		fmt.Println("go run useDIMEX-f.go 2 127.0.0.1:5000  127.0.0.1:6001  127.0.0.1:7002 [--s]")
 		return
 	}
 
 	id, _ := strconv.Atoi(os.Args[1])
+
 	addresses := os.Args[2:]
+	if os.Args[len(os.Args)-1] == "--s" {
+		addresses = os.Args[2 : len(os.Args)-1] // retira flag
+	}
 	// fmt.Print("id: ", id, "   ") fmt.Println(addresses)
 
 	var dmx *DIMEX.DIMEX_Module = DIMEX.NewDIMEX(addresses, id, true)
@@ -73,6 +77,13 @@ func main() {
 		return
 	}
 	defer file.Close() // Ensure the file is closed at the end of the function
+
+	snap_file, err := os.OpenFile("./snapshots.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer snap_file.Close() // Ensure the file is closed at the end of the function
 
 	// espera para facilitar inicializacao de todos processos (a mao)
 	time.Sleep(7 * time.Second)
@@ -98,6 +109,17 @@ func main() {
 		}
 
 		fmt.Println("[ APP id: ", id, " *EM*   MX ]")
+
+		if dmx.WriteSnapshotToFile {
+			// Escreve snapshot no arquivo
+			dmx.WriteSnapshotToFile = false // reseta flag
+			snapshotData := dmx.SnapshotToString()
+			_, err = snap_file.WriteString(snapshotData + "\n")
+			if err != nil {
+				fmt.Println("Error writing to file:", err)
+				return
+			}
+		}
 
 		_, err = file.WriteString(".") // marca saida no arquivo
 		if err != nil {

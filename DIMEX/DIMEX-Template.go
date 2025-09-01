@@ -63,10 +63,11 @@ type DIMEX_Module struct {
 	Pp2plink *PP2PLink.PP2PLink // acesso aa comunicacao enviar por PP2PLinq.Req  e receber por PP2PLinq.Ind
 
 	// variaveis de controle para algoritmo de snapshot
-	makingSnapshot    bool
-	snapshotAnswers   int
-	processState      string
-	messagesInTransit []string
+	makingSnapshot      bool
+	snapshotAnswers     int
+	processState        string
+	messagesInTransit   []string
+	WriteSnapshotToFile bool
 }
 
 // ------------------------------------------------------------------------------------
@@ -92,9 +93,10 @@ func NewDIMEX(_addresses []string, _id int, _dbg bool) *DIMEX_Module {
 		Pp2plink: p2p,
 
 		// variaveis de snapshot
-		makingSnapshot:    false,
-		snapshotAnswers:   0,
-		messagesInTransit: []string{},
+		makingSnapshot:      false,
+		snapshotAnswers:     0,
+		messagesInTransit:   []string{},
+		WriteSnapshotToFile: false,
 	}
 
 	for i := 0; i < len(dmx.waiting); i++ {
@@ -256,8 +258,9 @@ func (module *DIMEX_Module) handleUponDeliverReqEntry(msgOutro PP2PLink.PP2PLink
 func (module *DIMEX_Module) handleSnapshot(started bool) {
 	// talvez implementado
 
-	if module.snapshotAnswers == 0 {
+	if module.snapshotAnswers == 0 && !module.makingSnapshot {
 		module.makingSnapshot = true
+		module.messagesInTransit = []string{}
 		if started {
 			module.snapshotAnswers = 0
 		} else {
@@ -277,9 +280,9 @@ func (module *DIMEX_Module) handleSnapshot(started bool) {
 		if module.snapshotAnswers == len(module.addresses)-1 {
 			//finaliza snapshot
 			//salvar resultados
+			module.WriteSnapshotToFile = true
 			module.snapshotAnswers = 0
 			module.makingSnapshot = false
-			module.messagesInTransit = []string{}
 			module.outDbg("Finalizando snapshot")
 		}
 	}
@@ -314,5 +317,40 @@ func (module *DIMEX_Module) outDbg(s string) {
 
 func (module *DIMEX_Module) processStateToString() string {
 	// nao implementado
-	return ""
+	s := fmt.Sprint(module.id) + " " // id
+
+	switch module.st { // estado
+	case noMX:
+		s += "noMX "
+	case wantMX:
+		s += "wantMX "
+	case inMX:
+		s += "inMX "
+	}
+
+	for _, v := range module.waiting { // waiting
+		if v {
+			s += "1"
+		} else {
+			s += "0"
+		}
+	}
+	s += " "                               // separador
+	s += fmt.Sprint(module.lcl) + " "      // lcl
+	s += fmt.Sprint(module.reqTs) + " "    // reqTs
+	s += fmt.Sprint(module.nbrResps) + " " // nbrResps
+	return s
+}
+
+func (module *DIMEX_Module) SnapshotToString() string {
+	s := ""
+	s += module.processState
+	for i, msg := range module.messagesInTransit {
+		if i < len(module.messagesInTransit)-1 {
+			s += msg + "---"
+		} else {
+			s += msg + "\n"
+		}
+	}
+	return s
 }

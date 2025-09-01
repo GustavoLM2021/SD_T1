@@ -1,3 +1,0 @@
-id st waiting lcl reqTs nbrResps
-id st waiting lcl reqTs nbrResps
-id st waiting lcl reqTs nbrResps
