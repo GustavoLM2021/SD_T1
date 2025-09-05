@@ -1,0 +1,8 @@
+1 wantMX 100 4152 4151 1 ;;
+1 wantMX 100 22888 22887 1 ;;
+1 inMX 001 42422 42421 2 ;;reqEntry,0,42423
+1 wantMX 001 60961 60960 1 ;;
+1 wantMX 000 79963 79963 0 ;;respOk,2;;reqEntry,2,79964
+1 wantMX 100 99009 99008 1 ;;
+1 wantMX 000 118109 118109 0 ;;respOk,2;;reqEntry,2,118110
+1 wantMX 001 137323 137322 1 ;;respOk,0

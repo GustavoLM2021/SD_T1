@@ -22,6 +22,7 @@ package DIMEX
 import (
 	PP2PLink "SD/PP2PLink"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -63,11 +64,11 @@ type DIMEX_Module struct {
 	Pp2plink *PP2PLink.PP2PLink // acesso aa comunicacao enviar por PP2PLinq.Req  e receber por PP2PLinq.Ind
 
 	// variaveis de controle para algoritmo de snapshot
-	makingSnapshot      bool
-	snapshotAnswers     int
-	processState        string
-	messagesInTransit   []string
-	WriteSnapshotToFile bool
+	makingSnapshot    bool
+	snapshotAnswers   int
+	processState      string
+	messagesInTransit []string
+	snapshotFileName  string
 }
 
 // ------------------------------------------------------------------------------------
@@ -93,10 +94,10 @@ func NewDIMEX(_addresses []string, _id int, _dbg bool) *DIMEX_Module {
 		Pp2plink: p2p,
 
 		// variaveis de snapshot
-		makingSnapshot:      false,
-		snapshotAnswers:     0,
-		messagesInTransit:   []string{},
-		WriteSnapshotToFile: false,
+		makingSnapshot:    false,
+		snapshotAnswers:   0,
+		messagesInTransit: []string{},
+		snapshotFileName:  fmt.Sprintf("snapshot%d.txt", _id),
 	}
 
 	for i := 0; i < len(dmx.waiting); i++ {
@@ -129,8 +130,11 @@ func (module *DIMEX_Module) Start() {
 				}
 
 			case msgOutro := <-module.Pp2plink.Ind: // vindo de outro processo
-				//fmt.Printf("dimex recebe da rede: ", msgOutro)
 				module.outDbg("recebeu msg de outro processo: " + msgOutro.Message)
+				if module.makingSnapshot && !strings.Contains(msgOutro.Message, "msgSnapshot") {
+					module.messagesInTransit = append(module.messagesInTransit, msgOutro.Message)
+				}
+
 				if strings.Contains(msgOutro.Message, "respOk") {
 					module.outDbg("         <<<---- recebi um OK! " + msgOutro.Message)
 					module.handleUponDeliverRespOk(msgOutro) // ENTRADA DO ALGORITMO
@@ -260,7 +264,7 @@ func (module *DIMEX_Module) handleSnapshot(started bool) {
 
 	if module.snapshotAnswers == 0 && !module.makingSnapshot {
 		module.makingSnapshot = true
-		module.messagesInTransit = []string{}
+
 		if started {
 			module.snapshotAnswers = 0
 		} else {
@@ -279,10 +283,10 @@ func (module *DIMEX_Module) handleSnapshot(started bool) {
 		module.snapshotAnswers++
 		if module.snapshotAnswers == len(module.addresses)-1 {
 			//finaliza snapshot
-			//salvar resultados
-			module.WriteSnapshotToFile = true
+			module.writeSnapshotToFile()
 			module.snapshotAnswers = 0
 			module.makingSnapshot = false
+			module.messagesInTransit = []string{}
 			module.outDbg("Finalizando snapshot")
 		}
 	}
@@ -316,8 +320,7 @@ func (module *DIMEX_Module) outDbg(s string) {
 }
 
 func (module *DIMEX_Module) processStateToString() string {
-	// nao implementado
-	s := fmt.Sprint(module.id) + " " // id
+	s := ""
 
 	switch module.st { // estado
 	case noMX:
@@ -345,12 +348,27 @@ func (module *DIMEX_Module) processStateToString() string {
 func (module *DIMEX_Module) SnapshotToString() string {
 	s := ""
 	s += module.processState
+	s += ";;"
 	for i, msg := range module.messagesInTransit {
+		s += msg
 		if i < len(module.messagesInTransit)-1 {
-			s += msg + "---"
-		} else {
-			s += msg + "\n"
+			s += ";;"
 		}
 	}
+	s += "\n"
 	return s
+}
+
+func (module *DIMEX_Module) writeSnapshotToFile() {
+	file, err := os.OpenFile(module.snapshotFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	snapshotData := module.SnapshotToString()
+	_, err = file.WriteString(snapshotData)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return
+	}
 }
