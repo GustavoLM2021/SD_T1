@@ -69,6 +69,7 @@ type DIMEX_Module struct {
 	processState      string
 	messagesInTransit []string
 	snapshotFileName  string
+	snapshotID        int
 }
 
 // ------------------------------------------------------------------------------------
@@ -98,6 +99,7 @@ func NewDIMEX(_addresses []string, _id int, _dbg bool) *DIMEX_Module {
 		snapshotAnswers:   0,
 		messagesInTransit: []string{},
 		snapshotFileName:  fmt.Sprintf("snapshot%d.txt", _id),
+		snapshotID:        0,
 	}
 
 	for i := 0; i < len(dmx.waiting); i++ {
@@ -119,14 +121,14 @@ func (module *DIMEX_Module) Start() {
 			case dmxR := <-module.Req: // vindo da  aplicação
 				if dmxR == ENTER {
 					module.outDbg("app pede mx")
-					module.handleUponReqEntry() // ENTRADA DO ALGORITMO
+					module.handleUponReqEntry()
 
 				} else if dmxR == EXIT {
 					module.outDbg("app libera mx")
-					module.handleUponReqExit() // ENTRADA DO ALGORITMO
+					module.handleUponReqExit()
 				} else if dmxR == SNAPSHOT {
 					module.outDbg("app pede snapshot")
-					module.handleSnapshot(true)
+					module.handleSnapshot(true, module.snapshotID)
 				}
 
 			case msgOutro := <-module.Pp2plink.Ind: // vindo de outro processo
@@ -137,15 +139,16 @@ func (module *DIMEX_Module) Start() {
 
 				if strings.Contains(msgOutro.Message, "respOk") {
 					module.outDbg("         <<<---- recebi um OK! " + msgOutro.Message)
-					module.handleUponDeliverRespOk(msgOutro) // ENTRADA DO ALGORITMO
+					module.handleUponDeliverRespOk(msgOutro)
 
 				} else if strings.Contains(msgOutro.Message, "reqEntry") {
 					module.outDbg("          <<<---- recebi uma REQ!  " + msgOutro.Message)
-					module.handleUponDeliverReqEntry(msgOutro) // ENTRADA DO ALGORITMO
+					module.handleUponDeliverReqEntry(msgOutro)
 
 				} else if strings.Contains(msgOutro.Message, "msgSnapshot") {
 					module.outDbg("          <<<---- recebi pedido snapshot!  " + msgOutro.Message)
-					module.handleSnapshot(false)
+					_snapshotID, _ := strconv.Atoi(strings.Split(msgOutro.Message, ",")[2])
+					module.handleSnapshot(false, _snapshotID)
 				}
 			}
 		}
@@ -259,7 +262,7 @@ func (module *DIMEX_Module) handleUponDeliverReqEntry(msgOutro PP2PLink.PP2PLink
 	}
 }
 
-func (module *DIMEX_Module) handleSnapshot(started bool) {
+func (module *DIMEX_Module) handleSnapshot(started bool, _snapshotID int) {
 	// talvez implementado
 
 	if module.snapshotAnswers == 0 && !module.makingSnapshot {
@@ -267,6 +270,8 @@ func (module *DIMEX_Module) handleSnapshot(started bool) {
 
 		if started {
 			module.snapshotAnswers = 0
+			_snapshotID = module.snapshotID
+			module.snapshotID++
 		} else {
 			module.snapshotAnswers = 1
 		}
@@ -277,13 +282,13 @@ func (module *DIMEX_Module) handleSnapshot(started bool) {
 			if i == module.id {
 				continue // nao pode enviar a si mesmo
 			}
-			module.sendToLink(value, "msgSnapshot,"+fmt.Sprint(module.id), "")
+			module.sendToLink(value, "msgSnapshot,"+fmt.Sprint(module.id)+","+fmt.Sprint(_snapshotID), "")
 		}
 	} else {
 		module.snapshotAnswers++
 		if module.snapshotAnswers == len(module.addresses)-1 {
 			//finaliza snapshot
-			module.writeSnapshotToFile()
+			module.writeSnapshotToFile(_snapshotID)
 			module.snapshotAnswers = 0
 			module.makingSnapshot = false
 			module.messagesInTransit = []string{}
@@ -345,8 +350,8 @@ func (module *DIMEX_Module) processStateToString() string {
 	return s
 }
 
-func (module *DIMEX_Module) SnapshotToString() string {
-	s := ""
+func (module *DIMEX_Module) SnapshotToString(_snapshotID int) string {
+	s := fmt.Sprint(_snapshotID) + " "
 	s += module.processState
 	s += ";;"
 	for i, msg := range module.messagesInTransit {
@@ -359,13 +364,13 @@ func (module *DIMEX_Module) SnapshotToString() string {
 	return s
 }
 
-func (module *DIMEX_Module) writeSnapshotToFile() {
+func (module *DIMEX_Module) writeSnapshotToFile(_snapshotID int) {
 	file, err := os.OpenFile(module.snapshotFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
 	}
-	snapshotData := module.SnapshotToString()
+	snapshotData := module.SnapshotToString(_snapshotID)
 	_, err = file.WriteString(snapshotData)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
