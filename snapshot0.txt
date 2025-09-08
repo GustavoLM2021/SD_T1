@@ -1,3 +1,0 @@
-0 wantMX 001 4446 4446 0 ;;respOk,2;;respOk,1
-1 wantMX 001 22457 22457 0 ;;respOk,2;;respOk,1;;reqEntry,1,22458
-2 inMX 001 40206 40205 2 ;;reqEntry,1,40207

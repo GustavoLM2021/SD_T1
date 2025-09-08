@@ -98,7 +98,7 @@ func NewDIMEX(_addresses []string, _id int, _dbg bool) *DIMEX_Module {
 		makingSnapshot:    false,
 		snapshotAnswers:   0,
 		messagesInTransit: []string{},
-		snapshotFileName:  fmt.Sprintf("snapshot%d.txt", _id),
+		snapshotFileName:  fmt.Sprintf("../SnapshotAnalysis/snapshot%d.txt", _id),
 		snapshotID:        0,
 	}
 
@@ -368,12 +368,14 @@ func (module *DIMEX_Module) writeSnapshotToFile(_snapshotID int) {
 	file, err := os.OpenFile(module.snapshotFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
+		os.Exit(1)
 		return
 	}
 	snapshotData := module.SnapshotToString(_snapshotID)
 	_, err = file.WriteString(snapshotData)
 	if err != nil {
 		fmt.Println("Error writing to file:", err)
+		os.Exit(1)
 		return
 	}
 }
