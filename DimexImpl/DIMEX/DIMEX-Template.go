@@ -98,7 +98,7 @@ func NewDIMEX(_addresses []string, _id int, _dbg bool) *DIMEX_Module {
 		makingSnapshot:    false,
 		snapshotAnswers:   0,
 		messagesInTransit: []string{},
-		snapshotFileName:  fmt.Sprintf("../SnapshotAnalysis/snapshot%d.txt", _id),
+		snapshotFileName:  fmt.Sprintf("../SnapshotAnalysis/snapshot_proc_%d.txt", _id),
 		snapshotID:        0,
 	}
 

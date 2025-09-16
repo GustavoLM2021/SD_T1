@@ -1,0 +1,4 @@
+0 wantMX 001 2357 2356 1 ;;respOk,0
+1 wantMX 000 6351 6351 0 ;;respOk,2;;reqEntry,2,6352
+2 wantMX 000 10340 10340 0 ;;respOk,0
+3 wantMX 001 14502 14501 1 ;;respOk,0

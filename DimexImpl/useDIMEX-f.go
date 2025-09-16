@@ -41,7 +41,7 @@ func startSnapshot(dmx *DIMEX.DIMEX_Module, id int) {
 		time.Sleep(3 * time.Second)
 		fmt.Println("[ APP id: ", id, " PEDE SNAPSHOT ]")
 		dmx.Req <- DIMEX.SNAPSHOT
-		time.Sleep(10 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }
 
