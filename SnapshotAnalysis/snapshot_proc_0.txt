@@ -1,4 +1,6 @@
-0 inMX 011 2357 2355 2 ;;
-1 wantMX 010 6351 6350 1 ;;respOk,2;;reqEntry,2,6352
-2 inMX 011 10340 10338 2 ;;
-3 inMX 011 14502 14500 2 ;;
+0 wantMX 000 2530 2530 0 ;;
+1 wantMX 010 6797 6796 1 ;;respOk,2;;reqEntry,2,6798
+2 inMX 011 11134 11132 2 ;;
+3 inMX 011 15435 15433 2 ;;
+4 wantMX 001 19677 19676 1 ;;respOk,1;;reqEntry,1,19678
+5 wantMX 010 23942 23941 1 ;;respOk,2;;reqEntry,2,23943

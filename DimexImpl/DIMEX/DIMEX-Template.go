@@ -25,6 +25,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // ------------------------------------------------------------------------------------
@@ -70,6 +71,8 @@ type DIMEX_Module struct {
 	messagesInTransit []string
 	snapshotFileName  string
 	snapshotID        int
+
+	mutex sync.Mutex
 }
 
 // ------------------------------------------------------------------------------------
@@ -119,6 +122,7 @@ func (module *DIMEX_Module) Start() {
 		for {
 			select {
 			case dmxR := <-module.Req: // vindo da  aplicação
+				module.mutex.Lock()
 				if dmxR == ENTER {
 					module.outDbg("app pede mx")
 					module.handleUponReqEntry()
@@ -131,12 +135,17 @@ func (module *DIMEX_Module) Start() {
 					module.handleSnapshot(true, module.snapshotID)
 				}
 
+				module.mutex.Unlock()
+
 			case msgOutro := <-module.Pp2plink.Ind: // vindo de outro processo
 				module.outDbg("recebeu msg de outro processo: " + msgOutro.Message)
+				module.mutex.Lock()
 				if module.makingSnapshot && !strings.Contains(msgOutro.Message, "msgSnapshot") {
 					module.messagesInTransit = append(module.messagesInTransit, msgOutro.Message)
 				}
+				module.mutex.Unlock()
 
+				module.mutex.Lock()
 				if strings.Contains(msgOutro.Message, "respOk") {
 					module.outDbg("         <<<---- recebi um OK! " + msgOutro.Message)
 					module.handleUponDeliverRespOk(msgOutro)
@@ -150,6 +159,7 @@ func (module *DIMEX_Module) Start() {
 					_snapshotID, _ := strconv.Atoi(strings.Split(msgOutro.Message, ",")[2])
 					module.handleSnapshot(false, _snapshotID)
 				}
+				module.mutex.Unlock()
 			}
 		}
 	}()
