@@ -28,6 +28,12 @@ import (
 	"sync"
 )
 
+var (
+	bug_sc       = false // secao critica com apenas 1 resposta (AVISO: ELE CRASHA O CÓDIGO)
+	bug_deadlock = false // deadlock (precisa de N respostas para entrar na SC e não de N-1)
+)
+
+
 // ------------------------------------------------------------------------------------
 // ------- principais tipos
 // ------------------------------------------------------------------------------------
@@ -228,8 +234,9 @@ func (module *DIMEX_Module) handleUponDeliverRespOk(msgOutro PP2PLink.PP2PLink_I
 	*/
 	module.nbrResps++
 	module.outDbg("Recebi OK do ID " + strings.Split(msgOutro.Message, ",")[1])
-	if module.nbrResps == len(module.addresses)-1 {
-		module.outDbg("resps == N, estou na SC")
+
+	if (module.nbrResps == len(module.addresses)-1 && !bug_deadlock) || (module.nbrResps == 1 && bug_sc) {
+		module.outDbg("resps == N-1, estou na SC")
 		module.st = inMX
 		module.Ind <- dmxResp{} // sinaliza que pode acessar o recurso
 	} else {

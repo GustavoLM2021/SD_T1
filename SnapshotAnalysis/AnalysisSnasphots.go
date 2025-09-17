@@ -293,6 +293,18 @@ func checkTimestampConsistency(snapshot Snapshot) (bool, string) {
 	return true, ""
 }
 
+// invariante 6
+func checkStuckAtWanting(snapshot Snapshot) (bool, string) {
+    N := len(snapshot.Processes)
+
+    for _, processo := range snapshot.Processes {
+		if processo.State == WantMX && processo.NbrResps == N-1 {
+            return false, fmt.Sprintf("Violação: Processo %d está em WantMX mas já tem %d respostas (de %d necessárias), indicando um deadlock.", processo.ID, processo.NbrResps, N-1)
+        }
+    }
+    return true, ""
+}
+
 func main() {
 	
 	// le todos os snapshots
@@ -318,6 +330,7 @@ func main() {
 		{"Invariante 3: Se waiting[q] em p entao p esta InMX ou WantMX", checkIfHaveWaitingThenInSCOrWanting},
 		{"Invariante 4: Consistencia de nbrResps para WantMX", checkIfWantingThenMessageCount},
 		{"Invariante 5: Consistencia de timestamps", checkTimestampConsistency},
+		{"Invariante 6: Detecção de Deadlock (Travado em WantMX)", checkStuckAtWanting},
 	}
 	
 	totalViolations := 0
@@ -354,14 +367,14 @@ func main() {
 				snapshotViolations++
 				totalViolations++
 			} else {
-				fmt.Printf("%s: OK\n", invariant.name)
+				// fmt.Printf("%s: OK\n", invariant.name)
 			}
 		}
 		
 		if snapshotViolations == 0 {
-			fmt.Println("Snapshot valido - todas as invariantes satisfeitas")
+			fmt.Println("Snapshot VALIDO - todas as invariantes satisfeitas\n")
 		} else {
-			fmt.Printf("Snapshot invalido - %d problemas encontrados\n", snapshotViolations)
+			fmt.Printf("Snapshot INVALIDO - %d problemas encontrados\n\n", snapshotViolations)
 		}
 		
 		fmt.Println()
