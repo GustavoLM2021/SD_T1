@@ -68,6 +68,7 @@ type DIMEX_Module struct {
 	makingSnapshot    bool
 	snapshotAnswers   int
 	processState      string
+	snapshotMsgs  	  []bool
 	messagesInTransit []string
 	snapshotFileName  string
 	snapshotID        int
@@ -100,6 +101,7 @@ func NewDIMEX(_addresses []string, _id int, _dbg bool) *DIMEX_Module {
 		// variaveis de snapshot
 		makingSnapshot:    false,
 		snapshotAnswers:   0,
+		snapshotMsgs:  	   make([]bool, len(_addresses)),
 		messagesInTransit: []string{},
 		snapshotFileName:  fmt.Sprintf("../SnapshotAnalysis/snapshot_proc_%d.txt", _id),
 		snapshotID:        0,
@@ -122,7 +124,6 @@ func (module *DIMEX_Module) Start() {
 		for {
 			select {
 			case dmxR := <-module.Req: // vindo da  aplicação
-				module.mutex.Lock()
 				if dmxR == ENTER {
 					module.outDbg("app pede mx")
 					module.handleUponReqEntry()
@@ -132,34 +133,30 @@ func (module *DIMEX_Module) Start() {
 					module.handleUponReqExit()
 				} else if dmxR == SNAPSHOT {
 					module.outDbg("app pede snapshot")
-					module.handleSnapshot(true, module.snapshotID)
+					module.handleSnapshot(true, module.snapshotID, -1)
 				}
-
-				module.mutex.Unlock()
 
 			case msgOutro := <-module.Pp2plink.Ind: // vindo de outro processo
 				module.outDbg("recebeu msg de outro processo: " + msgOutro.Message)
-				module.mutex.Lock()
-				if module.makingSnapshot && !strings.Contains(msgOutro.Message, "msgSnapshot") {
+				id_msg, _ := strconv.Atoi(strings.Split(msgOutro.Message, ",")[1])
+
+				if module.makingSnapshot && !strings.Contains(msgOutro.Message, "msgSnapshot") && !module.snapshotMsgs[id_msg] {
 					module.messagesInTransit = append(module.messagesInTransit, msgOutro.Message)
 				}
-				module.mutex.Unlock()
 
-				module.mutex.Lock()
 				if strings.Contains(msgOutro.Message, "respOk") {
 					module.outDbg("         <<<---- recebi um OK! " + msgOutro.Message)
 					module.handleUponDeliverRespOk(msgOutro)
-
+				
 				} else if strings.Contains(msgOutro.Message, "reqEntry") {
 					module.outDbg("          <<<---- recebi uma REQ!  " + msgOutro.Message)
 					module.handleUponDeliverReqEntry(msgOutro)
-
+			
 				} else if strings.Contains(msgOutro.Message, "msgSnapshot") {
 					module.outDbg("          <<<---- recebi pedido snapshot!  " + msgOutro.Message)
 					_snapshotID, _ := strconv.Atoi(strings.Split(msgOutro.Message, ",")[2])
-					module.handleSnapshot(false, _snapshotID)
+					module.handleSnapshot(false, _snapshotID, id_msg)
 				}
-				module.mutex.Unlock()
 			}
 		}
 	}()
@@ -272,7 +269,7 @@ func (module *DIMEX_Module) handleUponDeliverReqEntry(msgOutro PP2PLink.PP2PLink
 	}
 }
 
-func (module *DIMEX_Module) handleSnapshot(started bool, _snapshotID int) {
+func (module *DIMEX_Module) handleSnapshot(started bool, _snapshotID int, id_origem_msg int) {
 	// talvez implementado
 
 	if module.snapshotAnswers == 0 && !module.makingSnapshot {
@@ -284,6 +281,7 @@ func (module *DIMEX_Module) handleSnapshot(started bool, _snapshotID int) {
 			module.snapshotID++
 		} else {
 			module.snapshotAnswers = 1
+			module.snapshotMsgs[id_origem_msg] = true
 		}
 		module.processState = module.processStateToString()
 		module.messagesInTransit = []string{}
@@ -295,12 +293,14 @@ func (module *DIMEX_Module) handleSnapshot(started bool, _snapshotID int) {
 			module.sendToLink(value, "msgSnapshot,"+fmt.Sprint(module.id)+","+fmt.Sprint(_snapshotID), "")
 		}
 	} else {
+		module.snapshotMsgs[id_origem_msg] = true
 		module.snapshotAnswers++
 		if module.snapshotAnswers == len(module.addresses)-1 {
 			//finaliza snapshot
 			module.writeSnapshotToFile(_snapshotID)
 			module.snapshotAnswers = 0
 			module.makingSnapshot = false
+			module.snapshotMsgs = make([]bool, len(module.addresses))
 			module.messagesInTransit = []string{}
 			module.outDbg("Finalizando snapshot")
 		}

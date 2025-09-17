@@ -233,33 +233,44 @@ func checkIfHaveWaitingThenInSCOrWanting(snapshot Snapshot) (bool, string) {
 
 // Invariante 4
 func checkIfWantingThenMessageCount(snapshot Snapshot) (bool, string) {
-	N := len(snapshot.Processes)
+    N := len(snapshot.Processes)
 
-	for _, process := range snapshot.Processes {
-		if process.State == WantMX {
-			
-			
-			// nmr msg recebidas
-			// nmr msg em transito
-			// flags em outros processos
-			// soma de tudo < N
+    for _, process := range snapshot.Processes {
+        if process.State == WantMX {
+            message_count := 0
 
+            message_count += process.NbrResps
+            for _, msg := range process.Messages {
+                if strings.Contains(msg, "respOk") {
+                    message_count++
+                }
+            }
 
+            for _, otherProcess := range snapshot.Processes {
+                if otherProcess.ID != process.ID {
+                    if otherProcess.Waiting[process.ID] == '1' {
+                        message_count++
+                    }
 
-			if process.NbrResps >= N {
-				return false, fmt.Sprintf("Violação: Processo %d (wantMX) tem nbrResps=%d >= N=%d", 
-					process.ID, process.NbrResps, N)
-			}
-			
-			// se nbrResps == N-1, o processo deveria estar na SC
-			if process.NbrResps == N-1 && process.State != InMX {
-				return false, fmt.Sprintf("Violação: Processo %d tem nbrResps=%d (N-1) mas não está na SC", 
-					process.ID, process.NbrResps)
-			}
-		}
-	}
-	
-	return true, ""
+                    for _, msg := range otherProcess.Messages {
+                        if strings.Contains(msg, fmt.Sprintf("reqEntry,%d", process.ID)) {
+                            message_count++
+                        }
+                    }
+                }
+            }
+            // nmr msg recebidas
+            // nmr msg em transito
+            // flags em outros processos
+            // soma de tudo < N
+
+            if message_count != N-1 {
+                return false, fmt.Sprintf("Violação: Processo %d em wantMX e tem somatorio de mensagens (%d) >= N (%d)", process.ID, message_count, N)
+            }
+        }
+    }
+
+    return true, ""
 }
 
 // invariante 5
