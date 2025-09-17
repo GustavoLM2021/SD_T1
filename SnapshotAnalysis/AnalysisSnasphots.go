@@ -43,7 +43,7 @@ func parseSnapshotLine(line string, proc_id int) (ProcessState, error) {
 	// id do snapshot (primeiro campo)
 	snapshotID, err := strconv.Atoi(parts[0])
 	if err != nil {
-		return ProcessState{}, fmt.Errorf("erro ao parsear snapshot ID: %v", err)
+		return ProcessState{}, fmt.Errorf("erro ao parsear snapshot ID: %d - %v",snapshotID , err)
 	}
 
 	// estado do processo (segundo campo)
@@ -96,7 +96,7 @@ func parseSnapshotLine(line string, proc_id int) (ProcessState, error) {
 	}
 
 	return ProcessState{
-		ID:       proc_id, // 🔥🔥👍🌽🔥🔥🎅🏿
+		ID:       proc_id,
 		State:    state,
 		Waiting:  waiting,
 		Lcl:      lcl,
@@ -147,7 +147,9 @@ func readAndParseSnapshots() ([]Snapshot, error) {
 
 	// converte para a estrutura manipulavel
 	var snapshots []Snapshot
-	for snapshotID, lines := range linesMap {
+	for i := 0; i < len(linesMap); i++ {
+	// for i, _ := range linesMap {
+		lines := linesMap[i]
 
 		var processes []ProcessState
 		for processID, line := range lines {
@@ -158,7 +160,7 @@ func readAndParseSnapshots() ([]Snapshot, error) {
 			processState, err := parseSnapshotLine(line, processID)
 
 			if err != nil {
-				log.Printf("Erro ao parsear linha do processo %d no snapshot %d: %v", processID, snapshotID, err)
+				log.Printf("Erro ao parsear linha do processo %d no snapshot %d: %v", processID, i, err)
 				continue
 			}
 			processes = append(processes, processState)
@@ -166,12 +168,11 @@ func readAndParseSnapshots() ([]Snapshot, error) {
 		
 		if len(processes) > 0 {
 			snapshots = append(snapshots, Snapshot{
-				ID:        snapshotID,
+				ID:        i,
 				Processes: processes,
 			})
 		}
 	}
-
 	return snapshots, nil
 }
 
@@ -322,8 +323,8 @@ func main() {
 	totalViolations := 0
 	
 	// olha cada snapshot
-	for _, snapshot := range snapshots {
-		fmt.Printf("--- SNAPSHOT %d ---\n", snapshot.ID)
+	for i, snapshot := range snapshots {
+		fmt.Printf("%d--- SNAPSHOT %d ---\n",i , snapshot.ID)
 		
 		// exibe estado dos processos
 		fmt.Println("Estados dos processos:")
