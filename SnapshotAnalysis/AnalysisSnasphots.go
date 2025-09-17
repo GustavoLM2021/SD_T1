@@ -205,10 +205,8 @@ func checkIfAllNotWantingThenNoWaitings(snapshot Snapshot) (bool, string) {
 	
 	// todos estao em noMX, verifica se nao tem waitings nem mensagens
 	for _, process := range snapshot.Processes {
-		// olha por waitings
-		waiting_num, _ := strconv.Atoi(process.Waiting)
-
-		if(waiting_num > 0) {
+		// olha por waitings (verifica se tem algum bit '1')
+		if strings.Contains(process.Waiting, "1") {
 			return false, fmt.Sprintf("Violação: Processo %d tem waiting=%s mas todos estão em noMX", process.ID, process.Waiting)
 		}
 		
@@ -224,8 +222,8 @@ func checkIfAllNotWantingThenNoWaitings(snapshot Snapshot) (bool, string) {
 // invariante 3
 func checkIfHaveWaitingThenInSCOrWanting(snapshot Snapshot) (bool, string) {
 	for _, process := range snapshot.Processes {
-		waiting_num, _ := strconv.Atoi(process.Waiting)
-		if(waiting_num > 0 && process.State == NoMX) {
+		// olha se tem algum bit '1' no waiting
+		if strings.Contains(process.Waiting, "1") && process.State == NoMX {
 			return false, fmt.Sprintf("Violação: Processo %d tem waiting=%s mas está em noMX", process.ID, process.Waiting)
 		}
 	}
@@ -249,7 +247,8 @@ func checkIfWantingThenMessageCount(snapshot Snapshot) (bool, string) {
 
             for _, otherProcess := range snapshot.Processes {
                 if otherProcess.ID != process.ID {
-                    if otherProcess.Waiting[process.ID] == '1' {
+                    // olha se o indice esta dentro dos limites 
+                    if process.ID < len(otherProcess.Waiting) && otherProcess.Waiting[process.ID] == '1' {
                         message_count++
                     }
 
@@ -266,7 +265,7 @@ func checkIfWantingThenMessageCount(snapshot Snapshot) (bool, string) {
             // soma de tudo < N
 
             if message_count != N-1 {
-                return false, fmt.Sprintf("Violação: Processo %d em wantMX e tem somatorio de mensagens (%d) >= N (%d)", process.ID, message_count, N)
+                return false, fmt.Sprintf("Violacao: Processo %d em wantMX tem sum de mensagens (%d) != N-1 (%d)", process.ID, message_count, N-1)
             }
         }
     }
