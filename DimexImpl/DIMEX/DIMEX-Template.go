@@ -29,8 +29,8 @@ import (
 )
 
 var (
-	bug_sc       = false // secao critica com apenas 1 resposta (AVISO: ELE CRASHA O CÓDIGO)
 	bug_deadlock = false // deadlock (precisa de N respostas para entrar na SC e não de N-1)
+	bug_respostas = false // anota todas as respostas na snapshot, inclusive de quem já respondeu à mensagem de snapshot (quebra a inv 4 com numero de interações > N-1)
 )
 
 
@@ -146,7 +146,7 @@ func (module *DIMEX_Module) Start() {
 				module.outDbg("recebeu msg de outro processo: " + msgOutro.Message)
 				id_msg, _ := strconv.Atoi(strings.Split(msgOutro.Message, ",")[1])
 
-				if module.makingSnapshot && !strings.Contains(msgOutro.Message, "msgSnapshot") && !module.snapshotMsgs[id_msg] {
+				if module.makingSnapshot && !strings.Contains(msgOutro.Message, "msgSnapshot") && ((!module.snapshotMsgs[id_msg]) || bug_respostas) {
 					module.messagesInTransit = append(module.messagesInTransit, msgOutro.Message)
 				}
 
@@ -235,7 +235,7 @@ func (module *DIMEX_Module) handleUponDeliverRespOk(msgOutro PP2PLink.PP2PLink_I
 	module.nbrResps++
 	module.outDbg("Recebi OK do ID " + strings.Split(msgOutro.Message, ",")[1])
 
-	if (module.nbrResps == len(module.addresses)-1 && !bug_deadlock) || (module.nbrResps == 1 && bug_sc) {
+	if (module.nbrResps == len(module.addresses)-1 && !bug_deadlock) {
 		module.outDbg("resps == N-1, estou na SC")
 		module.st = inMX
 		module.Ind <- dmxResp{} // sinaliza que pode acessar o recurso
@@ -300,7 +300,9 @@ func (module *DIMEX_Module) handleSnapshot(started bool, _snapshotID int, id_ori
 			module.sendToLink(value, "msgSnapshot,"+fmt.Sprint(module.id)+","+fmt.Sprint(_snapshotID), "")
 		}
 	} else {
-		module.snapshotMsgs[id_origem_msg] = true
+		if !started {
+			module.snapshotMsgs[id_origem_msg] = true
+		}
 		module.snapshotAnswers++
 		if module.snapshotAnswers == len(module.addresses)-1 {
 			//finaliza snapshot
